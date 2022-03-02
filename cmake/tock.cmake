@@ -1,3 +1,5 @@
+cmake_policy(SET CMP0116 NEW)
+
 set(LIBTOCK_RS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/libtock-rs)
 set(TOCK_ROOT ${LIBTOCK_RS_ROOT}/tock)
 
@@ -41,9 +43,8 @@ function(add_kernel BOARD_VARIANT)
 
     set(KERNEL ${TOCK_TARGET}/${TARGET}/release/${VARIANT})
 
-    add_custom_target(kernel-${IDENTIFIER} ALL DEPENDS ${KERNEL}.elf)
+    add_custom_target(kernel-${IDENTIFIER} ALL DEPENDS ${KERNEL})
     add_custom_command(OUTPUT ${KERNEL}
-        BYPRODUCTS ${KERNEL}.elf
         COMMAND ${RUSTUP}
             CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUNNER=[]
             TARGET_DIRECTORY=${TOCK_TARGET}/
@@ -82,7 +83,7 @@ function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
     add_dependencies(${EXAMPLE}-${IDENTIFIER} rustup epic-llvm epic-rust kernel-${IDENTIFIER})
 
     add_custom_target(run-${EXAMPLE}-${IDENTIFIER}
-        COMMAND ${RUSTUP} LIBTOCK_PLATFORM=${BOARD} ${EXAMPLE_ELF} --deploy qemu --verbose
+        COMMAND ${RUSTUP} LIBTOCK_PLATFORM=${BOARD} runner ${EXAMPLE_ELF} --deploy qemu --verbose
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         USES_TERMINAL
     )
