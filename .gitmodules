@@ -1,0 +1,3 @@
+[submodule "libtock-rs"]
+	path = libtock-rs
+	url = https://github.com/jprendes/libtock-rs.git
