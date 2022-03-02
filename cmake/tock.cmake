@@ -39,14 +39,16 @@ function(add_kernel BOARD_VARIANT)
     parse_board_variant(${BOARD_VARIANT})
     set(${IDENTIFIER}_TARGET ${TARGET} PARENT_SCOPE)
 
-    set(KERNEL_ELF ${TOCK_TARGET}/${TARGET}/release/${VARIANT}.elf)
+    set(KERNEL ${TOCK_TARGET}/${TARGET}/release/${VARIANT})
 
-    add_custom_target(kernel-${IDENTIFIER} ALL DEPENDS ${KERNEL_ELF})
-    add_custom_command(OUTPUT ${KERNEL_ELF}
+    add_custom_target(kernel-${IDENTIFIER} ALL DEPENDS ${KERNEL}.elf)
+    add_custom_command(OUTPUT ${KERNEL}
+        BYPRODUCTS ${KERNEL}.elf
         COMMAND ${RUSTUP}
             CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUNNER=[]
             TARGET_DIRECTORY=${TOCK_TARGET}/
-            make -C boards/${BOARD_VARIANT} ${KERNEL_ELF}
+            make -C boards/${BOARD_VARIANT} ${KERNEL}.elf
+        DEPFILE ${KERNEL}.d
         WORKING_DIRECTORY ${TOCK_ROOT}
         USES_TERMINAL
     )
@@ -67,20 +69,22 @@ function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
 
     add_custom_target(${EXAMPLE}-${IDENTIFIER} ALL DEPENDS ${EXAMPLE_ELF})
     add_custom_command(OUTPUT ${EXAMPLE_ELF}
-        COMMAND ${RUSTUP}
+        COMMAND echo ${EXAMPLE_ELF}.d && ${RUSTUP}
             CARGO_BUILD_TARGET_DIR=${LIBTOCK_RS_TARGET}/${BOARD_VARIANT}
             RUSTUP_TOOLCHAIN=epic
             CARGO_TARGET_${TARGET_UPPER}_LINKER=${LLVM_DIR}/bin/ld.lld
             LIBTOCK_PLATFORM=${BOARD}
-            cargo build -Zbuild-std=core --example console -p libtock2 --release --target=${TARGET}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libtock-rs
+            cargo build -Zbuild-std=core --example ${EXAMPLE} -p libtock2 --release --target=${TARGET}
+        DEPFILE ${EXAMPLE_ELF}.d
+        WORKING_DIRECTORY ${LIBTOCK_RS_ROOT}
         USES_TERMINAL
     )
-    add_dependencies(${EXAMPLE}-${IDENTIFIER} rustup elf2tab epic-rust kernel-${IDENTIFIER})
+    add_dependencies(${EXAMPLE}-${IDENTIFIER} rustup epic-llvm epic-rust kernel-${IDENTIFIER})
 
     add_custom_target(run-${EXAMPLE}-${IDENTIFIER}
-        COMMAND ${RUSTUP} LIBTOCK_PLATFORM=${BOARD} runner ${EXAMPLE_ELF} --deploy qemu --verbose
+        COMMAND ${RUSTUP} LIBTOCK_PLATFORM=${BOARD} ${EXAMPLE_ELF} --deploy qemu --verbose
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         USES_TERMINAL
     )
+    add_dependencies(run-${EXAMPLE}-${IDENTIFIER} runner elf2tab ${EXAMPLE}-${IDENTIFIER})
 endfunction()
