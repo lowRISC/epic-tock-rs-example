@@ -61,7 +61,7 @@ function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
     parse_board_variant(${BOARD_VARIANT})
 
     # For some reason things don't work with "riscv32imc" from opentitan, but does with "riscv32imac"
-    set(TARGET riscv32imac-unknown-none-elf)
+    # set(TARGET riscv32imac-unknown-none-elf)
 
     string(MAKE_C_IDENTIFIER ${TARGET} TARGET_UPPER)
     string(TOUPPER ${TARGET_UPPER} TARGET_UPPER)
