@@ -60,9 +60,6 @@ endfunction()
 function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
     parse_board_variant(${BOARD_VARIANT})
 
-    # For some reason things don't work with "riscv32imc" from opentitan, but does with "riscv32imac"
-    # set(TARGET riscv32imac-unknown-none-elf)
-
     string(MAKE_C_IDENTIFIER ${TARGET} TARGET_UPPER)
     string(TOUPPER ${TARGET_UPPER} TARGET_UPPER)
 
@@ -70,7 +67,7 @@ function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
 
     add_custom_target(${EXAMPLE}-${IDENTIFIER} ALL DEPENDS ${EXAMPLE_ELF})
     add_custom_command(OUTPUT ${EXAMPLE_ELF}
-        COMMAND echo ${EXAMPLE_ELF}.d && ${RUSTUP}
+        COMMAND ${RUSTUP}
             CARGO_BUILD_TARGET_DIR=${LIBTOCK_RS_TARGET}/${BOARD_VARIANT}
             RUSTUP_TOOLCHAIN=epic
             CARGO_TARGET_${TARGET_UPPER}_LINKER=${LLVM_DIR}/bin/ld.lld
