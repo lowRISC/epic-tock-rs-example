@@ -8,6 +8,11 @@ This repository illustrates how to use the work-in-progress ePIC toolchain imple
 
 ## Building and Running
 
+First you need to clone this repo and its submodules
+```
+git clone --recursive https://github.com/jprendes/epic-tock-rs-example.git
+```
+
 Build requirements:
 
 - LLVM build dependencies
