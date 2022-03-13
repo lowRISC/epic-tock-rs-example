@@ -32,19 +32,6 @@ Use `cmake --build ./build -- run-console-hifive1` to run the app in hifive1, an
 This error can be triggered by uncommenting line 39 in `libtock-rs/libtock2/examples/console.rs`.
 Trying to run the example on either platform (`hifive1` or `opentitan`) will result in the compile time error `error: fixup value out of range`.
 
-### Wrong `.data` section offset in the `crt0_header`
-
-Currently there is a workaround in place for this issue.
-To disable the workarround comment out the `.padding` section in `libtock-rs/runtime/libtock_layout.ld` (lines 135 through 138).
-
-The `crt0_header` contains a `data_sym_start` entry, which indicates the start of the `.data` section in FLASH memory.
-This entry is computed in the linker script as `LONG(LOADADDR(.data) - ORIGIN(FLASH))`.
-
-It seems that in some cases (depending on the size of the generated sections), the value of `LOADADDR(.data)` is wrongly computed.
-In the shipping example, that should be computed as `0x80002AF4`, but instead results in `0x80002AF8` (i.e., 4 bytes forward of its actual value).
-
-This results in the initialization of the `.data` section in RAM being incorrect, and resulting in the wrong relocations being applied.
-
 ## Licensing
 
 Unless otherwise noted, everything in this repository is covered by the Apache License, Version 2.0 (see [LICENSE](LICENSE) for full text).
