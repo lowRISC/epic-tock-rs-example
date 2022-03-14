@@ -27,6 +27,8 @@ LLVM binaries will be searched in `${LLVM_DIR}/bin/` and rustc binaries will be 
 
 Use `cmake --build ./build -- run-console-hifive1` to run the app in hifive1, and `cmake --build ./build -- run-console-opentitan_earlgrey_cw310` to run the app in opentitan.
 
+## Known issues
+
 ### Compile error `error: fixup value out of range`
 
 This error can be triggered by uncommenting line 39 in `libtock-rs/libtock2/examples/console.rs`.
