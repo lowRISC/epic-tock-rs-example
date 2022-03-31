@@ -34,7 +34,7 @@ add_custom_command(OUTPUT ${CARGO_HOME}/bin/runner
     COMMAND ${RUSTUP} cargo install --path ${LIBTOCK_RS_ROOT}/runner
     USES_TERMINAL
 )
-add_dependencies(runner rustup)
+add_dependencies(runner rustup elf2tab qemu)
 
 # kernels
 function(add_kernel BOARD_VARIANT)
@@ -84,5 +84,5 @@ function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         USES_TERMINAL
     )
-    add_dependencies(run-${EXAMPLE}-${IDENTIFIER} runner elf2tab ${EXAMPLE}-${IDENTIFIER})
+    add_dependencies(run-${EXAMPLE}-${IDENTIFIER} runner ${EXAMPLE}-${IDENTIFIER})
 endfunction()

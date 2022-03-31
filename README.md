@@ -13,6 +13,11 @@ First you need to clone this repo and its submodules
 git clone --recursive https://github.com/jprendes/epic-tock-rs-example.git
 ```
 
+If you didn't clone recursively, you need to initialize the submodules:
+```
+git submodule update --init --recursive
+```
+
 Build requirements:
 
 - LLVM build dependencies
