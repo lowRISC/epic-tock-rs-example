@@ -5,6 +5,7 @@ if ( NOT LLVM_DIR )
 ExternalProject_Add(epic-llvm
     URL https://github.com/jprendes/llvm-project/archive/refs/heads/epic2.zip
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/llvm
+    PATCH_COMMAND git apply -p0 ${CMAKE_CURRENT_SOURCE_DIR}/relaxations.patch
     CMAKE_ARGS 
         ${CMAKE_CURRENT_BINARY_DIR}/llvm/src/epic-llvm/llvm
         -G Ninja
