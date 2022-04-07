@@ -26,6 +26,7 @@ cxx=\"clang++\"
 ExternalProject_Add(epic-rust-upstream
     URL https://github.com/jprendes/rust/releases/download/epic-rust/epic-rust-with-submodules.tar.gz
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/rust
+    PATCH_COMMAND git apply --directory=src/llvm-project -p0 ${CMAKE_CURRENT_SOURCE_DIR}/relaxations.patch
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND rm -f ./config.toml
         && ../epic-rust-upstream/x.py setup codegen
