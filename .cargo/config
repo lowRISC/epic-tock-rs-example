@@ -1,0 +1,6 @@
+# Common settings for all embedded targets
+[target.'cfg(any(target_arch = "arm", target_arch = "riscv32"))']
+rustflags = [
+    "-C", "target-feature=+relax",
+    "-C", "link-arg=--relax",
+]
