@@ -73,6 +73,9 @@ function(add_epic_tock_example EXAMPLE BOARD_VARIANT)
             CARGO_TARGET_${TARGET_UPPER}_LINKER=${LLVM_DIR}/bin/ld.lld
             LIBTOCK_PLATFORM=${BOARD}
             cargo build -Zbuild-std=core --example ${EXAMPLE} -p libtock2 --release --target=${TARGET}
+        DEPENDS
+            ${CMAKE_CURRENT_SOURCE_DIR}/libtock-rs/.cargo/config
+            ${CMAKE_CURRENT_SOURCE_DIR}/.cargo/config
         DEPFILE ${EXAMPLE_ELF}.d
         WORKING_DIRECTORY ${LIBTOCK_RS_ROOT}
         USES_TERMINAL
