@@ -15,9 +15,9 @@ Index: lld/ELF/Arch/RISCV.cpp
    void relocate(uint8_t *loc, const Relocation &rel,
                  uint64_t val) const override;
 +  void finalizeSections() const override;
+   void transformEPICRel(uint8_t *loc, Relocation &rel) const override;
  };
  
- } // end anonymous namespace
 @@ -52,6 +54,7 @@
  
  enum Reg {
@@ -26,7 +26,7 @@ Index: lld/ELF/Arch/RISCV.cpp
    X_T0 = 5,
    X_T1 = 6,
    X_T2 = 7,
-@@ -236,16 +239,14 @@
+@@ -282,17 +285,15 @@
    case R_RISCV_TPREL_LO12_I:
    case R_RISCV_TPREL_LO12_S:
      return R_TPREL;
@@ -35,6 +35,7 @@ Index: lld/ELF/Arch/RISCV.cpp
 +  case R_RISCV_GPREL_S:
 +    return R_RISCV_GPREL;
    case R_RISCV_TPREL_ADD:
+   case R_RISCV_GPREL_ADD:
      return R_NONE;
 +  case R_RISCV_RELAX:
    case R_RISCV_ALIGN:
@@ -45,10 +46,11 @@ Index: lld/ELF/Arch/RISCV.cpp
 -                "unimplemented linker relaxation; recompile with -mno-relax");
 -    return R_NONE;
 +    return R_RELAX_HINT;
-   default:
-     error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
-           ") against symbol " + toString(s));
-@@ -371,5 +372,6 @@
+   case R_RISCV_EPIC_HI20:
+   case R_RISCV_EPIC_LO12_I:
+   case R_RISCV_EPIC_LO12_S:
+@@ -426,6 +427,7 @@
+   case R_RISCV_GPREL_LO12_I:
    case R_RISCV_PCREL_LO12_I:
    case R_RISCV_TPREL_LO12_I:
 +  case R_RISCV_GPREL_I:
@@ -56,7 +58,7 @@ Index: lld/ELF/Arch/RISCV.cpp
      uint64_t hi = (val + 0x800) >> 12;
      uint64_t lo = val - (hi << 12);
 @@ -380,6 +382,7 @@
- 
+   case R_RISCV_GPREL_LO12_S:
    case R_RISCV_PCREL_LO12_S:
    case R_RISCV_TPREL_LO12_S:
 +  case R_RISCV_GPREL_S:
@@ -71,8 +73,55 @@ Index: lld/ELF/Arch/RISCV.cpp
      return; // Ignored (for now)
  
    default:
-@@ -445,6 +449,307 @@
+@@ -501,46 +505,6 @@
    }
+ }
+ 
+-// For R_RISCV_PC_INDIRECT (R_RISCV_PCREL_LO12_{I,S}), the symbol actually
+-// points the corresponding R_RISCV_PCREL_HI20 relocation, and the target VA
+-// is calculated using PCREL_HI20's symbol.
+-//
+-// This function returns the R_RISCV_PCREL_HI20 relocation from
+-// R_RISCV_PCREL_LO12's symbol and addend.
+-static Relocation *getRISCVPCRelHi20(const Symbol *sym, uint64_t addend) {
+-  const Defined *d = cast<Defined>(sym);
+-  if (!d->section) {
+-    error("R_RISCV_PCREL_LO12 relocation points to an absolute symbol: " +
+-          sym->getName());
+-    return nullptr;
+-  }
+-  InputSection *isec = cast<InputSection>(d->section);
+-
+-  if (addend != 0)
+-    warn("Non-zero addend in R_RISCV_PCREL_LO12 relocation to " +
+-         isec->getObjMsg(d->value) + " is ignored");
+-
+-  // Relocations are sorted by offset, so we can use std::equal_range to do
+-  // binary search.
+-  Relocation r;
+-  r.offset = d->value;
+-  auto range =
+-      std::equal_range(isec->relocations.begin(), isec->relocations.end(), r,
+-                       [](const Relocation &lhs, const Relocation &rhs) {
+-                         return lhs.offset < rhs.offset;
+-                       });
+-
+-  for (auto it = range.first; it != range.second; ++it)
+-    if (it->type == R_RISCV_PCREL_HI20 || it->type == R_RISCV_GOT_HI20 ||
+-        it->type == R_RISCV_TLS_GD_HI20 || it->type == R_RISCV_TLS_GOT_HI20 ||
+-        it->type == R_RISCV_GPREL_HI20)
+-      return &*it;
+-
+-  error("R_RISCV_PCREL_LO12 relocation points to " + isec->getObjMsg(d->value) +
+-        " without an associated R_RISCV_PCREL_HI20 relocation");
+-  return nullptr;
+-}
+-
+ void RISCV::transformEPICRel(uint8_t *loc, Relocation &rel) const {
+   switch (rel.type) {
+   case R_RISCV_EPIC_HI20:
+@@ -582,6 +546,307 @@
+   rel.expr = getRelExpr(rel.type, *rel.sym, loc);
  }
  
 +static uint64_t maxOutputSectionAlignment() {
@@ -582,6 +631,16 @@ Index: lld/ELF/InputSection.cpp
    const Defined *d = cast<Defined>(sym);
    if (!d->section) {
      error("R_RISCV_PCREL_LO12 relocation points to an absolute symbol: " +
+@@ -620,7 +700,8 @@ static Relocation *getRISCVPCRelHi20(const Symbol *sym, uint64_t addend) {
+ 
+   for (auto it = range.first; it != range.second; ++it)
+     if (it->type == R_RISCV_PCREL_HI20 || it->type == R_RISCV_GOT_HI20 ||
+-        it->type == R_RISCV_TLS_GD_HI20 || it->type == R_RISCV_TLS_GOT_HI20)
++        it->type == R_RISCV_TLS_GD_HI20 || it->type == R_RISCV_TLS_GOT_HI20 ||
++        it->type == R_RISCV_GPREL_HI20)
+       return &*it;
+ 
+   error("R_RISCV_PCREL_LO12 relocation points to " + isec->getObjMsg(d->value) +
 @@ -752,6 +832,13 @@
      uint64_t val = sym.isUndefWeak() ? p + a : sym.getVA(a);
      return getAArch64Page(val) - getAArch64Page(p);
@@ -652,60 +711,6 @@ Index: lld/ELF/Relocations.cpp
 ===================================================================
 --- lld/ELF/Relocations.cpp
 +++ lld/ELF/Relocations.cpp
-@@ -125,35 +125,29 @@
- }
- 
- namespace {
--// Build a bitmask with one bit set for each RelExpr.
--//
--// Constexpr function arguments can't be used in static asserts, so we
--// use template arguments to build the mask.
--// But function template partial specializations don't exist (needed
--// for base case of the recursion), so we need a dummy struct.
--template <RelExpr... Exprs> struct RelExprMaskBuilder {
--  static inline uint64_t build() { return 0; }
--};
-+// Build a bitmask with one bit set for each 64 subset of RelExpr.
-+constexpr uint64_t buildMask() { return 0; }
- 
--// Specialization for recursive case.
--template <RelExpr Head, RelExpr... Tail>
--struct RelExprMaskBuilder<Head, Tail...> {
--  static inline uint64_t build() {
--    static_assert(0 <= Head && Head < 64,
--                  "RelExpr is too large for 64-bit mask!");
--    return (uint64_t(1) << Head) | RelExprMaskBuilder<Tail...>::build();
--  }
--};
-+template <typename... Tails>
-+constexpr uint64_t buildMask(int head, Tails... tails) {
-+  return (0 <= head && head < 64 ? (uint64_t(1) << head) : 0) |
-+         buildMask(tails...);
-+}
- } // namespace
- 
- // Return true if `Expr` is one of `Exprs`.
--// There are fewer than 64 RelExpr's, so we can represent any set of
--// RelExpr's as a constant bit mask and test for membership with a
--// couple cheap bitwise operations.
-+// There are more than 64 but less than 128 RelExprs, so we divide the set of
-+// exprs into [0, 63] and [64, 127] and represent each range as a constant
-+// 64-bit mask. Then we decide which mask to test depending on the value of
-+// expr and use a simple shift and bitwise-and to test for membership.
- template <RelExpr... Exprs> bool oneof(RelExpr expr) {
--  assert(0 <= expr && (int)expr < 64 &&
--         "RelExpr is too large for 64-bit mask!");
--  return (uint64_t(1) << expr) & RelExprMaskBuilder<Exprs...>::build();
-+  assert(0 <= expr && (int)expr < 128 &&
-+         "RelExpr is too large for 128-bit mask!");
-+
-+  if (expr >= 64)
-+    return (uint64_t(1) << (expr - 64)) & buildMask((Exprs - 64)...);
-+
-+  return (uint64_t(1) << expr) & buildMask(Exprs...);
- }
- 
- // This function is similar to the `handleTlsRelocation`. MIPS does not
 @@ -412,8 +406,7 @@
              R_PLT_PC, R_TLSGD_GOT, R_TLSGD_GOTPLT, R_TLSGD_PC, R_PPC32_PLTREL,
              R_PPC64_CALL_PLT, R_PPC64_RELAX_TOC, R_RISCV_ADD, R_TLSDESC_CALL,
@@ -721,8 +726,8 @@ Index: lld/ELF/Target.h
 --- lld/ELF/Target.h
 +++ lld/ELF/Target.h
 @@ -91,6 +91,8 @@
-   virtual void applyJumpInstrMod(uint8_t *loc, JumpModType type,
-                                  JumpModType val) const {}
+ 
+   virtual void transformEPICRel(uint8_t *loc, Relocation &rel) const {}
  
 +  virtual void finalizeSections() const {}
 +
